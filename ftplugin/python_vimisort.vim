@@ -1,8 +1,5 @@
 if exists('g:vim_isort_python_version')
-    if g:vim_isort_python_version ==? 'python2'
-        command! -nargs=1 AvailablePython python <args>
-        let s:available_short_python = ':py'
-    elseif g:vim_isort_python_version ==? 'python3'
+    if g:vim_isort_python_version ==? 'python3'
         command! -nargs=1 AvailablePython python3 <args>
         let s:available_short_python = ':py3'
     endif
@@ -10,9 +7,6 @@ else
     if has('python3')
         command! -nargs=1 AvailablePython python3 <args>
         let s:available_short_python = ':py3'
-    elseif has('python')
-        command! -nargs=1 AvailablePython python <args>
-        let s:available_short_python = ':py'
     else
         throw 'No python support present, vim-isort will be disabled'
     endif
@@ -33,16 +27,8 @@ if !exists('g:vim_isort_config_overrides')
 endif
 
 AvailablePython <<EOF
-from __future__ import print_function
-import os
+from functools import lru_cache
 import vim
-from sys import version_info
-
-
-# in python2, the vim module uses utf-8 encoded strings
-# in python3, it uses unicodes
-# so we have to do different things in each case
-using_bytes = version_info[0] == 2
 
 
 def count_blank_lines_at_end(lines):
@@ -55,22 +41,19 @@ def count_blank_lines_at_end(lines):
     return blank_lines
 
 
-def isort(text_range):
+@lru_cache(maxsize=None)
+def import_isort():
     try:
-        # Try isort >= 5
         from isort import code
         from isort.settings import Config
-        isort_imported = True
+        return code, Config
     except ImportError:
-        try:
-            # Try isort < 5
-            from isort import SortImports
-            code = None
-            isort_imported = True
-        except ImportError:
-            isort_imported = False
+        return None, None
 
-    if not isort_imported:
+
+def isort(text_range):
+    code, Config = import_isort()
+    if code is None:
         print("No isort python module detected, you should install it. More info at https://github.com/fisadev/vim-isort")
         return
 
@@ -78,6 +61,7 @@ def isort(text_range):
     if not isinstance(config_overrides, dict):
         print('g:vim_isort_config_overrides should be dict, found {}'.format(type(config_overrides)))
         return
+
     # convert ints carried over from vim as strings
     config_overrides = {k: int(v) if isinstance(v, str) and v.isdigit() else v
                         for k, v in config_overrides.items()}
@@ -85,22 +69,15 @@ def isort(text_range):
     blank_lines_at_end = count_blank_lines_at_end(text_range)
 
     old_text = '\n'.join(text_range)
-    if using_bytes:
-        old_text = old_text.decode('utf-8')
 
-    if code is not None:
-        if config_overrides:
-            new_text = code(old_text, **config_overrides)
-        else:
-            new_text = code(old_text, config=Config(settings_path=os.getcwd()))
+    if config_overrides:
+        new_text = code(old_text, **config_overrides)
     else:
-        new_text = SortImports(file_contents=old_text, **config_overrides).output
+        from os import getcwd
+        new_text = code(old_text, config=Config(settings_path=getcwd()))
 
     if new_text is None or old_text == new_text:
         return
-
-    if using_bytes:
-        new_text = new_text.encode('utf-8')
 
     new_lines = new_text.split('\n')
 
