@@ -27,8 +27,7 @@ if !exists('g:vim_isort_config_overrides')
 endif
 
 AvailablePython <<EOF
-from functools import lru_cache
-import vim
+from functools import cache
 
 
 def count_blank_lines_at_end(lines):
@@ -41,7 +40,7 @@ def count_blank_lines_at_end(lines):
     return blank_lines
 
 
-@lru_cache(maxsize=None)
+@cache
 def import_isort():
     try:
         from isort import code
@@ -51,12 +50,25 @@ def import_isort():
         return None, None
 
 
+@cache
+def import_getcwd():
+    from os import getcwd
+    return getcwd
+
+
+@cache
+def import_vim():
+    import vim
+    return vim
+
+
 def isort(text_range):
     code, Config = import_isort()
     if code is None:
         print("No isort python module detected, you should install it. More info at https://github.com/fisadev/vim-isort")
         return
 
+    vim = import_vim()
     config_overrides = vim.eval('g:vim_isort_config_overrides')
     if not isinstance(config_overrides, dict):
         print('g:vim_isort_config_overrides should be dict, found {}'.format(type(config_overrides)))
@@ -73,7 +85,7 @@ def isort(text_range):
     if config_overrides:
         new_text = code(old_text, **config_overrides)
     else:
-        from os import getcwd
+        getcwd = import_getcwd()
         new_text = code(old_text, config=Config(settings_path=getcwd()))
 
     if new_text is None or old_text == new_text:
@@ -88,9 +100,11 @@ def isort(text_range):
     text_range[:] = new_lines
 
 def isort_file():
+    vim = import_vim()
     isort(vim.current.buffer)
 
 def isort_visual():
+    vim = import_vim()
     isort(vim.current.range)
 
 EOF
