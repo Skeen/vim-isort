@@ -1,3 +1,7 @@
+This repository contains changes that make all python imports lazy, as a means to reduce startup time.
+Thus the version here should not slowdown vim startup time, but instead slowdown the first usage of the Isort command.
+All subsequent uses are cached, and as such fast as well.
+
 vim-isort
 =========
 
