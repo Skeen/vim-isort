@@ -38,20 +38,6 @@ import os
 import vim
 from sys import version_info
 
-try:
-    # Try isort >= 5
-    from isort import code
-    from isort.settings import Config
-    isort_imported = True
-except ImportError:
-    try:
-        # Try isort < 5
-        from isort import SortImports
-        code = None
-        isort_imported = True
-    except ImportError:
-        isort_imported = False
-
 
 # in python2, the vim module uses utf-8 encoded strings
 # in python3, it uses unicodes
@@ -70,6 +56,20 @@ def count_blank_lines_at_end(lines):
 
 
 def isort(text_range):
+    try:
+        # Try isort >= 5
+        from isort import code
+        from isort.settings import Config
+        isort_imported = True
+    except ImportError:
+        try:
+            # Try isort < 5
+            from isort import SortImports
+            code = None
+            isort_imported = True
+        except ImportError:
+            isort_imported = False
+
     if not isort_imported:
         print("No isort python module detected, you should install it. More info at https://github.com/fisadev/vim-isort")
         return
